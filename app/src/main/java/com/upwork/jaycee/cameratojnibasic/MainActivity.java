@@ -17,6 +17,7 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
 import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -105,6 +106,9 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         public void onImageAvailable(ImageReader reader)
         {
             /* TODO: Send image to JNI */
+            Image img = reader.acquireLatestImage();
+            boolean edit = JNIWrapper.YUV2Greyscale(img.getWidth(), img.getHeight(), img.getPlanes()[0].getBuffer(), surface);
+            img.close();
         }
     };
 
@@ -137,6 +141,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     private HandlerThread cameraBackgroundThread;
 
     private AutofitTexture cameraTexture;
+    private Surface surface;
 
     private int sensorOrientation;
     private int state = STATE_PREVIEW;
@@ -227,8 +232,8 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                     continue;
                 }
 
-                Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new CompareSizesByArea());
-                imageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, 2);
+                Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)), new CompareSizesByArea());
+                imageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.YUV_420_888, 2);
                 imageReader.setOnImageAvailableListener(imageAvailableListener, cameraHandler);
 
                 int displayRotation = getWindowManager().getDefaultDisplay().getRotation();
@@ -394,10 +399,11 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
             texture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
 
-            Surface surface = new Surface(texture);
+            surface = new Surface(texture);
 
             previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             previewRequestBuilder.addTarget(surface);
+            previewRequestBuilder.addTarget(imageReader.getSurface());
 
             camera.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
                     new CameraCaptureSession.StateCallback()
