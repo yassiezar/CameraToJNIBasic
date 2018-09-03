@@ -4,33 +4,28 @@
 extern "C" {
 #endif
 
-uint32_t* YUV2RGB(uint8_t y, uint8_t u, uint8_t v)
-{
-    uint32_t* rgb;
-    rgb = (uint32_t*)malloc(4);
-
-    y -= 16;
-    u -= 128;
-    v -= 128;
-    rgb[0] = 1.164 * y             + 1.596 * v;
-    rgb[1] = 1.164 * y - 0.392 * u - 0.813 * v;
-    rgb[2] = 1.164 * y + 2.017 * u;
-    rgb[3] = 255;
-
-    return rgb;
-}
-
 JNIEXPORT bool JNICALL
-Java_com_upwork_jaycee_cameratojnibasic_JNIWrapper_YUV2Greyscale(JNIEnv* env, jobject obj, jint width, jint height, jobject srcBuffer, jobject surface)
+Java_com_upwork_jaycee_cameratojnibasic_JNIWrapper_YUV2Greyscale(JNIEnv* env, jobject obj, jint width, jint height, jobject srcBuffer, jint stride, jobject surface)
 {
-    ANativeWindow * window = ANativeWindow_fromSurface(env, surface);
+    uint8_t *srcPtr = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(srcBuffer));
+    if (srcPtr == nullptr)
+    {
+        __android_log_write(ANDROID_LOG_ERROR, "JNI", "Buffer null error");
+        return false;
+    }
+
+    ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     ANativeWindow_acquire(window);
 
     ANativeWindow_Buffer buffer;
     ANativeWindow_setBuffersGeometry(window, width, height, 0);
-    ANativeWindow_lock(window, &buffer, NULL);
 
-    uint8_t *srcPtr = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(srcBuffer));
+    if(ANativeWindow_lock(window, &buffer, NULL) != 0)
+    {
+        __android_log_write(ANDROID_LOG_ERROR, "JNI", "Window acquisition error");
+        ANativeWindow_release(window);
+        return false;
+    }
 
     /*
     uint32_t* dstBuffer = reinterpret_cast<uint32_t *>(buffer.bits);
@@ -64,11 +59,14 @@ Java_com_upwork_jaycee_cameratojnibasic_JNIWrapper_YUV2Greyscale(JNIEnv* env, jo
         }
     }*/
 
+    //memcpy(buffer.bits, srcPtr, width * height * 4);
     uint8_t *outPtr = reinterpret_cast<uint8_t *>(buffer.bits);
-    for (size_t y = 0; y < height; y++) {
-        uint8_t *rowPtr = srcPtr + y * width;
-        for (size_t x = 0; x < width; x++)
-        {
+    for (size_t y = 0; y < height; y++)
+    {
+       uint8_t* rowPtr = srcPtr + y * width;
+       for (size_t x = 0; x < width; x++)
+       {
+            // packRGBA() just converts YUV to RGB.
             *(outPtr++) = *rowPtr;
             *(outPtr++) = *rowPtr;
             *(outPtr++) = *rowPtr;
@@ -81,16 +79,6 @@ Java_com_upwork_jaycee_cameratojnibasic_JNIWrapper_YUV2Greyscale(JNIEnv* env, jo
     ANativeWindow_release(window);
 
     return true;
-}
-
-void RGBfromYUV(double& R, double& G, double& B, double Y, double U, double V)
-{
-    Y -= 16;
-    U -= 128;
-    V -= 128;
-    R = 1.164 * Y             + 1.596 * V;
-    G = 1.164 * Y - 0.392 * U - 0.813 * V;
-    B = 1.164 * Y + 2.017 * U;
 }
 
 #ifdef __cplusplus

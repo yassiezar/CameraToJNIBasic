@@ -107,7 +107,16 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         {
             /* TODO: Send image to JNI */
             Image img = reader.acquireLatestImage();
-            boolean edit = JNIWrapper.YUV2Greyscale(img.getWidth(), img.getHeight(), img.getPlanes()[0].getBuffer(), surface);
+            if(img == null)
+            {
+                Log.e(TAG, "No image");
+                return;
+            }
+
+            if(!JNIWrapper.YUV2Greyscale(img.getWidth(), img.getHeight(), img.getPlanes()[0].getBuffer(),img.getPlanes()[0].getPixelStride(), surface))
+            {
+                Log.e(TAG, "Image display error");
+            }
             img.close();
         }
     };
@@ -212,6 +221,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
     private void setupCamera(int width, int height)
     {
+        Log.e(TAG, "Setup Camera");
         CameraManager cameraManager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
         try
         {
@@ -315,6 +325,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             return;
         }
 
+        Log.e(TAG, "Open Camera");
         setupCamera(width, height);
         configureTransform(width, height);
         CameraManager cameraManager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
@@ -392,6 +403,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
     private void createCameraPreviewSession()
     {
+        Log.e(TAG, "Create preview");
         try
         {
             SurfaceTexture texture = cameraTexture.getSurfaceTexture();
@@ -402,10 +414,13 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             surface = new Surface(texture);
 
             previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            previewRequestBuilder.addTarget(surface);
+            // previewRequestBuilder.addTarget(surface);
             previewRequestBuilder.addTarget(imageReader.getSurface());
 
-            camera.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
+            List<Surface> outputSurfaces = new ArrayList<>();
+            outputSurfaces.add(imageReader.getSurface());
+            // outputSurfaces.add(surface);
+            camera.createCaptureSession(outputSurfaces,
                     new CameraCaptureSession.StateCallback()
                     {
                         @Override
@@ -418,7 +433,8 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                             captureSession = session;
                             try
                             {
-                                previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                // previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_MODE_AUTO);
                                 previewRequest = previewRequestBuilder.build();
                                 captureSession.setRepeatingRequest(previewRequest, captureCallback, cameraHandler);
                             }
@@ -431,9 +447,9 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                         @Override
                         public void onConfigureFailed(@NonNull CameraCaptureSession session)
                         {
-
+                            Log.e(TAG, "Preview configure failed");
                         }
-                    }, null
+                    }, cameraHandler
             );
         }
         catch (CameraAccessException e)

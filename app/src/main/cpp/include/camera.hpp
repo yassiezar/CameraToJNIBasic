@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 JNIEXPORT bool JNICALL
-Java_com_upwork_jaycee_cameratojnibasic_JNIWrapper_YUV2Greyscale(JNIEnv*, jobject, jint, jint, jobject, jobject);
+Java_com_upwork_jaycee_cameratojnibasic_JNIWrapper_YUV2Greyscale(JNIEnv*, jobject, jint, jint, jobject, jint, jobject);
 
 #ifdef __cplusplus
 }

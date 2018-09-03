@@ -13,5 +13,5 @@ public class JNIWrapper
         Log.e("LibLoader", "Loaded library");
     }
 
-    public static native boolean YUV2Greyscale(int width, int height, ByteBuffer buffer, Surface surface);
+    public static native boolean YUV2Greyscale(int width, int height, ByteBuffer buffer, int stride, Surface surface);
 }
